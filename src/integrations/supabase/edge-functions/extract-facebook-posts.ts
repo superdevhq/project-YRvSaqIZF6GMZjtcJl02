@@ -1,6 +1,7 @@
 
-// Follow Supabase Edge Function pattern for imports
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+// Use Supabase's built-in serve function
+// This is available in the Supabase Edge Function runtime
+// No need to import from Deno
 
 // CORS headers for cross-origin requests
 const corsHeaders = {
@@ -253,7 +254,8 @@ const processApifyResults = (results) => {
   });
 };
 
-serve(async (req) => {
+// Main handler function
+Deno.serve(async (req) => {
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -357,7 +359,7 @@ serve(async (req) => {
       }
     });
   } catch (error) {
-    console.error('Error in extract-facebook-posts function:', error);
+    console.error('Error extracting posts:', error);
     return new Response(JSON.stringify({ error: 'Internal server error', details: error.message }), {
       status: 500,
       headers: {
