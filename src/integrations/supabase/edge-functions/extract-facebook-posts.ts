@@ -1,5 +1,6 @@
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+// Follow Supabase Edge Function pattern for imports
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 
 // CORS headers for cross-origin requests
 const corsHeaders = {
