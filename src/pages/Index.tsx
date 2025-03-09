@@ -6,65 +6,28 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
-// Mock data for Facebook posts
-const MOCK_POSTS = [
-  {
-    id: "1",
-    author: {
-      name: "Jane Smith",
-      profilePic: "https://i.pravatar.cc/150?img=1",
-      initials: "JS"
-    },
-    content: "Just launched our new product! Check it out at our website. #newproduct #launch",
-    likes: 42,
-    comments: 7,
-    date: "2 hours ago"
-  },
-  {
-    id: "2",
-    author: {
-      name: "John Doe",
-      profilePic: "https://i.pravatar.cc/150?img=2",
-      initials: "JD"
-    },
-    content: "We're hosting a virtual meetup next week to discuss the latest trends in our industry. Everyone is welcome to join! Link in the comments.",
-    likes: 28,
-    comments: 15,
-    date: "5 hours ago"
-  },
-  {
-    id: "3",
-    author: {
-      name: "Sarah Johnson",
-      profilePic: "https://i.pravatar.cc/150?img=3",
-      initials: "SJ"
-    },
-    content: "Looking for recommendations on the best tools for remote collaboration. What's working well for your team?",
-    likes: 35,
-    comments: 23,
-    date: "1 day ago"
-  },
-  {
-    id: "4",
-    author: {
-      name: "Michael Brown",
-      profilePic: "https://i.pravatar.cc/150?img=4",
-      initials: "MB"
-    },
-    content: "Just shared an article on our blog about improving productivity while working from home. Link in bio!",
-    likes: 19,
-    comments: 5,
-    date: "2 days ago"
-  },
-];
+// Define the post type
+interface Post {
+  id: string;
+  author: {
+    name: string;
+    profilePic: string;
+    initials: string;
+  };
+  content: string;
+  likes: number;
+  comments: number;
+  date: string;
+}
 
 const Index = () => {
   const [url, setUrl] = useState("");
-  const [posts, setPosts] = useState<typeof MOCK_POSTS>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const handleExtract = () => {
+  const handleExtract = async () => {
     if (!url) {
       toast({
         title: "Error",
@@ -85,16 +48,41 @@ const Index = () => {
     }
 
     setLoading(true);
-    
-    // Simulate API call with a timeout
-    setTimeout(() => {
-      setPosts(MOCK_POSTS);
-      setLoading(false);
-      toast({
-        title: "Success!",
-        description: "Successfully extracted posts from the group",
+    setPosts([]);
+
+    try {
+      // Call the Supabase Edge Function
+      const { data, error } = await supabase.functions.invoke('extract-facebook-posts', {
+        body: { url }
       });
-    }, 1500);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data && data.posts) {
+        setPosts(data.posts);
+        toast({
+          title: "Success!",
+          description: `Successfully extracted ${data.posts.length} posts from the group`,
+        });
+      } else {
+        toast({
+          title: "No posts found",
+          description: "No posts were found in this group or the group might be private",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error extracting posts:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to extract posts. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -126,9 +114,20 @@ const Index = () => {
             </div>
           </CardContent>
           <CardFooter className="text-sm text-gray-500">
-            Note: Currently using mock data. Integration with Apify coming soon.
+            Powered by Apify Facebook Posts Extractor
           </CardFooter>
         </Card>
+
+        {loading && (
+          <div className="text-center py-10">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status">
+              <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
+                Loading...
+              </span>
+            </div>
+            <p className="mt-2 text-gray-600">Extracting posts from Facebook...</p>
+          </div>
+        )}
 
         {posts.length > 0 && (
           <div className="space-y-6">
@@ -158,6 +157,12 @@ const Index = () => {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        )}
+
+        {!loading && posts.length === 0 && url && (
+          <div className="text-center py-10">
+            <p className="text-gray-600">No posts found. Try another Facebook group.</p>
           </div>
         )}
       </div>
